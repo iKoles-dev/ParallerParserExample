@@ -130,7 +130,7 @@ namespace TGC
             File.AppendAllLines(black_list_path, _bl);
 
             if (!File.Exists(errorPath)) { using (FileStream fs = File.Create(errorPath)) { }; }
-            File.AppendAllLines(errorPath, _bl);
+            File.AppendAllLines(errorPath, _errors);
         }
         private static void CheckStatus(TelegramChecker telegramChecker)
         {
