@@ -65,7 +65,7 @@ namespace TGC
                 string rawBlackList = File.ReadAllText(blackListPath);
                 if (!string.IsNullOrEmpty(rawBlackList))
                 {
-                    _blackList = new List<string>(rawBlackList.Split("\n"));
+                    _blackList = new List<string>(rawBlackList.Split("\r\n"));
                 }
             }
         }
