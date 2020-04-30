@@ -9,6 +9,7 @@ namespace Homebrew
 
     public static class Proxies
     {
+        private static bool _isEnd = false;
         private static string _proxyPath = "proxy.txt";
         private static Stack<Proxy> _proxyContainer = new Stack<Proxy>();
 
@@ -27,6 +28,11 @@ namespace Homebrew
             while (_proxyContainer.Count==0)
             {
                 Thread.Sleep(100);
+                if (!_isEnd)
+                {
+                    Console.WriteLine("Proxy-list is empty.");
+                    _isEnd = true;
+                }
             }
             return _proxyContainer.Pop();
         }
