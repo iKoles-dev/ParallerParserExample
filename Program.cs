@@ -99,13 +99,14 @@ namespace TGC
 
                         string tempUrl = url;
                         _currentThreadCount++;
-                        new Thread(
-                            () =>
-                                {
-                                    TelegramChecker telegramChecker = new TelegramChecker(tempUrl);
-                                    CheckStatus(telegramChecker);
-                                    _currentThreadCount--;
-                                }).Start();
+                        Thread thread = new Thread(
+                                            () =>
+                                                {
+                                                    TelegramChecker telegramChecker = new TelegramChecker(tempUrl);
+                                                    CheckStatus(telegramChecker);
+                                                    _currentThreadCount--;
+                                                }) { IsBackground = true };
+                        thread.Start();
                     });
 
             while (_currentThreadCount != 0)
@@ -151,6 +152,7 @@ namespace TGC
                 case UrlTypes.CloseChat:
                     {
                         string data = $"{telegramChecker.Url} | Close chat";
+                        Console.WriteLine(data);
                         _good.Push(data);
                         break;
                     }
@@ -158,6 +160,7 @@ namespace TGC
                     {
                         string data = $"{telegramChecker.Url} | {telegramChecker.Members}";
                         Console.WriteLine(data);
+                        _good.Push(data);
                         _bl.Push(telegramChecker.Url);
                         break;
                     }
