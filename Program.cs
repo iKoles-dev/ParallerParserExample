@@ -44,6 +44,7 @@ namespace ParallerParserExample
                 Thread.Sleep(100);
             }
 
+
             Console.WriteLine("Работа всех потоков успешно завершена!");
             Console.ReadLine();
         }
