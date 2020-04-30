@@ -24,12 +24,12 @@ namespace TGC
         static void Main(string[] args)
         {
             Proxies.Load();
-            //if (args.Length < 1)
-            //{
-            //    Console.WriteLine("No files uploaded. Just Drag'andDrop txt them to this exe file.");
-            //    Console.ReadLine();
-            //    return;
-            //}
+            if (args.Length < 1)
+            {
+                Console.WriteLine("No files uploaded. Just Drag'andDrop txt them to this exe file.");
+                Console.ReadLine();
+                return;
+            }
 
             SetBlackList();
             SetUrlsList(args);
