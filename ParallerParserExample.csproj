@@ -5,4 +5,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="HomeBrew\ParserComponents\Proxies.cs~RF1020ba77.TMP" />
+  </ItemGroup>
+
 </Project>

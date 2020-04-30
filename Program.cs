@@ -1,58 +1,167 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Threading;
 
-namespace ParallerParserExample
+namespace TGC
 {
-    using System.Collections.Generic;
-    using System.Threading;
+    using Homebrew;
 
     class Program
     {
-        private static Stack<int> _stackExample = new Stack<int>();
+        private static int _currentThreadCount = 0;
+        private static int _maxThreadValue = 500;
+        private static List<string> _urls = new List<string>();
+        private static List<string> _blackList = new List<string>();
 
-        private static int _currentThreadCount = 0; //Текущее количество работающих потоков.
-        private static int _maxThreadValue = 50; //Максимальное количество потоков.
+        static Stack<string> _good = new Stack<string>();
+        static Stack<string> _errors = new Stack<string>();
+        static Stack<string> _bl = new Stack<string>();
+        static int _channels = 0;
+
         static void Main(string[] args)
         {
-            //Заполняем Stack случайными данными.
-            var random = new Random();
-            for (int i = 0; i < 1000; i++)
-            {
-                _stackExample.Push(i);
-            }
+            Proxies.Load();
+            //if (args.Length < 1)
+            //{
+            //    Console.WriteLine("No files uploaded. Just Drag'andDrop txt them to this exe file.");
+            //    Console.ReadLine();
+            //    return;
+            //}
 
-            //Перебираем все элементы Stack'a.
-            while (_stackExample.Count>0)
+            SetBlackList();
+            SetUrlsList(args);
+
+            Console.WriteLine();
+            Console.WriteLine("Uploaded file : {0}", args.Length);
+            Console.WriteLine("Uploaded line : {0}", _urls.Count);
+            Console.WriteLine("Uploaded black list : {0}", _blackList.Count);
+            Console.WriteLine();
+
+            StartParsing();
+            Save();
+
+
+            Console.WriteLine();
+            Console.WriteLine("Find chat : {0}", _good.Count);
+            Console.WriteLine("Channel : {0}", _channels);
+            Console.WriteLine("Error : {0}", _errors.Count);
+
+            Console.WriteLine("\n\nPress <Any key> to quit.");
+            Console.ReadKey();
+        }
+
+        private static void SetBlackList()
+        {
+            string blackListPath = @"blacklist.txt";
+            if (!File.Exists(blackListPath))
             {
-                //Выставляем задержку, чтобы потоки не создавались сверх указанного нами количества.
-                while (_currentThreadCount >= _maxThreadValue)
+                File.Create(blackListPath).Dispose();
+            }
+            else
+            {
+                string rawBlackList = File.ReadAllText(blackListPath);
+                if (!string.IsNullOrEmpty(rawBlackList))
                 {
-                    Thread.Sleep(100);
+                    _blackList = new List<string>(rawBlackList.Split("\n"));
                 }
-
-                int tempValue = _stackExample.Pop(); // Обязательно переносим элемент Stack'a в локальную переменную, чтобы поток "успел" её подхвать до начала следующего цикла.
-                _currentThreadCount++; //Увеличиваем счётчик текущих потоков.
-                new Thread(
-                    () =>
-                        {
-                            ExampleMethod(tempValue); // Вызываем нужный нам метод.
-                            _currentThreadCount--; // После окончания работы нужного нам метода не забываем уменьшить счётчик текущих потоков.
-                        }).Start();
             }
-            //Запускаем ожидание окончания выполнения всех потоков
-            while (_currentThreadCount!=0)
+        }
+        private static void SetUrlsList(string[] args)
+        {
+            foreach (string path in args)
+            {
+                string[] rawUrls = File.ReadAllText(path).Split("\r\n");
+                foreach (var url in rawUrls)
+                {
+                    if (_urls.Contains(url) || _blackList.Contains(url)
+                                            || !Uri.IsWellFormedUriString(url, UriKind.Absolute))
+                    {
+                        continue;
+                    }
+                    _urls.Add(url);
+                }
+            }
+        }
+        private static void StartParsing()
+        {
+            Stopwatch stopWatch = new Stopwatch();
+            stopWatch.Start();
+            _urls.ForEach(
+                url =>
+                    {
+                        while (_currentThreadCount >= _maxThreadValue)
+                        {
+                            Thread.Sleep(100);
+                        }
+
+                        string tempUrl = url;
+                        _currentThreadCount++;
+                        new Thread(
+                            () =>
+                                {
+                                    TelegramChecker telegramChecker = new TelegramChecker(tempUrl);
+                                    CheckStatus(telegramChecker);
+                                    _currentThreadCount--;
+                                }).Start();
+                    });
+
+            while (_currentThreadCount != 0)
             {
                 Thread.Sleep(100);
             }
-
-
-            Console.WriteLine("Работа всех потоков успешно завершена!");
-            Console.ReadLine();
+            stopWatch.Stop();
+            TimeSpan ts = stopWatch.Elapsed;
+            string elapsedTime = $"{ts.Hours:00}:{ts.Minutes:00}:{ts.Seconds:00}.{ts.Milliseconds / 10:00}";
+            Console.WriteLine("Runtime : {0}", elapsedTime);
         }
-
-        //Тестовый метод. При реализации - заменить на свой
-        private static void ExampleMethod(int value)
+        private static void Save()
         {
-            Console.WriteLine($"Обработано значение: {value}");
+            string black_list_path = @"blacklist.txt", output_path, errorPath = @"error.txt";
+            output_path = String.Format("{0}.txt", DateTime.Now.ToString("HH_mm dd_MM_yy"));
+
+            if (!File.Exists(output_path)) { using (FileStream fs = File.Create(output_path)) { }; }
+            File.WriteAllLines(output_path, _good);
+
+            if (!File.Exists(black_list_path)) { using (FileStream fs = File.Create(black_list_path)) { }; }
+            File.AppendAllLines(black_list_path, _bl);
+
+            if (!File.Exists(errorPath)) { using (FileStream fs = File.Create(errorPath)) { }; }
+            File.AppendAllLines(errorPath, _bl);
+        }
+        private static void CheckStatus(TelegramChecker telegramChecker)
+        {
+            if (telegramChecker.IsError)
+            {
+                Console.WriteLine($"{telegramChecker.Url} | Error");
+                _errors.Push(telegramChecker.Url);
+                return;
+            }
+            switch (telegramChecker.UrlType)
+            {
+                case UrlTypes.Channel:
+                    {
+                        Console.WriteLine($"{telegramChecker.Url} | channel");
+                        _bl.Push(telegramChecker.Url);
+                        _channels++;
+                        break;
+                    }
+                case UrlTypes.CloseChat:
+                    {
+                        string data = $"{telegramChecker.Url} | Close chat";
+                        _good.Push(data);
+                        break;
+                    }
+                case UrlTypes.Chat:
+                    {
+                        string data = $"{telegramChecker.Url} | {telegramChecker.Members}";
+                        Console.WriteLine(data);
+                        _bl.Push(telegramChecker.Url);
+                        break;
+                    }
+            }
         }
     }
 }
