@@ -14,8 +14,9 @@
 
         private Proxy _currentProxy;
         private int triesToConnect = 3;
-        public TelegramChecker(string url)
+        public TelegramChecker(string url, int reconnects)
         {
+            triesToConnect = reconnects;
             Url = url;
             LinkParser linkParser = null;
             do

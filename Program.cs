@@ -16,10 +16,12 @@ namespace TGC
         private static List<string> _urls = new List<string>();
         private static List<string> _blackList = new List<string>();
 
-        static Stack<string> _good = new Stack<string>();
-        static Stack<string> _errors = new Stack<string>();
-        static Stack<string> _bl = new Stack<string>();
-        static int _channels = 0;
+        private static Stack<string> _good = new Stack<string>();
+        private static Stack<string> _errors = new Stack<string>();
+        private static Stack<string> _bl = new Stack<string>();
+        private static int _channels = 0;
+
+        private static int _reconnectCount = 3;
 
         static void Main(string[] args)
         {
@@ -30,7 +32,7 @@ namespace TGC
                 Console.ReadLine();
                 return;
             }
-
+            LoadCfg();
             SetBlackList();
             SetUrlsList(args);
 
@@ -53,6 +55,26 @@ namespace TGC
             Console.ReadKey();
         }
 
+        private static void LoadCfg()
+        {
+            if (File.Exists("cfg.txt"))
+            {
+                string[] data = File.ReadAllText("cfg.txt").Split("\r\n");
+
+                if (data.Length == 2)
+                {
+                    if (int.TryParse(data[0], out int threads))
+                    {
+                        _maxThreadValue = threads;
+                    }
+
+                    if (int.TryParse(data[1], out int reconnects))
+                    {
+                        _reconnectCount = reconnects;
+                    }
+                }
+            }
+        }
         private static void SetBlackList()
         {
             string blackListPath = @"blacklist.txt";
@@ -102,7 +124,7 @@ namespace TGC
                         Thread thread = new Thread(
                                             () =>
                                                 {
-                                                    TelegramChecker telegramChecker = new TelegramChecker(tempUrl);
+                                                    TelegramChecker telegramChecker = new TelegramChecker(tempUrl, _reconnectCount);
                                                     CheckStatus(telegramChecker);
                                                     _currentThreadCount--;
                                                 }) { IsBackground = true };
